@@ -1,0 +1,38 @@
+name: Tag from Podspec
+
+on:
+  push:
+    branches:
+      - main  # or your main development branch
+
+jobs:
+  tag:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Extract version from .podspec
+        id: get_version
+        run: |
+          PODSPEC_FILE=$(ls *.podspec | head -n 1)
+          echo "Found Podspec: $PODSPEC_FILE"
+          VERSION=$(grep -E "s.version\s*=" "$PODSPEC_FILE" | sed -E "s/.*= *['\"](.*)['\"].*/\1/")
+          echo "Parsed version: $VERSION"
+          echo "VERSION=$VERSION" >> $GITHUB_ENV
+          echo "tag_name=v$VERSION" >> $GITHUB_OUTPUT
+
+      - name: Check if tag already exists
+        run: |
+          if git rev-parse "v${{ env.VERSION }}" >/dev/null 2>&1; then
+            echo "Tag v${{ env.VERSION }} already exists. Skipping..."
+            exit 0
+          fi
+
+      - name: Create and push tag
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git tag v${{ env.VERSION }}
+          git push origin v${{ env.VERSION }}
